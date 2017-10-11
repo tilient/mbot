@@ -1,5 +1,8 @@
 package main
 
+// cfr.
+//   http://learn.makeblock.com/en/mbot-serial-port-protocol/
+
 import (
 	"fmt"
 	"log"
