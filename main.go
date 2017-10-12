@@ -4,11 +4,11 @@ package main
 //   http://learn.makeblock.com/en/...
 //     ...mbot-serial-port-protocol/
 //
-// to compile for windows
-//   export GOOS=windows
-//   export GOARCH=amd64
-//   export CC=x86_64-w64-mingw32-gcc
-//   go build
+/* to compile for windows
+export GOOS=windows
+export GOARCH=amd64
+export CC=x86_64-w64-mingw32-gcc
+*/
 
 import (
 	"fmt"
@@ -44,7 +44,7 @@ func (bot *mbot) close() {
 	bot.port.Close()
 }
 
-func (bot *mbot) cmd(cmd ...byte) {
+func (bot *mbot) cmd(cmd ...byte) []byte {
 	bot.mux.Lock()
 	defer bot.mux.Unlock()
 
@@ -60,11 +60,12 @@ func (bot *mbot) cmd(cmd ...byte) {
 		log.Fatal(err)
 	}
 
-	buf := make([]byte, 128)
+	buf := make([]byte, 32)
 	n, err = bot.port.Read(buf)
 	if err != nil {
 		log.Fatal(err)
 	}
+	return buf[:n]
 }
 
 // ------------------------------------------------
