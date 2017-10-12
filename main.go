@@ -13,16 +13,46 @@ import (
 
 // ----------------------------------------------------------
 
-func sendCmd(s *serial.Port, cmd []byte){
-	_, err := s.Write(cmd)
+type mbot struct {
+	port *serial.Port
+	cmd  []byte
+}
+
+func makeMbot(portname string) *mbot {
+	bot := mbot{}
+	c := &serial.Config{
+		Name: portname,
+		Baud: 57600,
+  	ReadTimeout: 500 * time.Millisecond}
+	p, err := serial.OpenPort(c)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = s.Flush()
+	bot.port = p
+	bot.cmd = make([]byte, 0, 256)
+	return &bot
+}
+
+func (bot *mbot)close() {
+	bot.cmd = bot.cmd[0:0]
+	bot.port.Close()
+}
+
+func (bot *mbot) addCmd(cmd ...byte) {
+  bot.cmd = append(bot.cmd, cmd...)
+}
+
+func (bot *mbot) sendCmd() {
+	_, err := bot.port.Write(bot.cmd)
 	if err != nil {
 		log.Fatal(err)
 	}
-	time.Sleep(50 * time.Millisecond)
+	err = bot.port.Flush()
+	if err != nil {
+		log.Fatal(err)
+	}
+	bot.cmd = bot.cmd[0:0]
+	time.Sleep(10 * time.Millisecond)
 }
 
 // ----------------------------------------------------------
@@ -33,56 +63,41 @@ const (
   ledBoth  = 0x00
 )
 
-func sendLedCmd(s *serial.Port, position byte,
+func (bot *mbot)ledCmd(position byte,
                 r byte, g byte, b byte) {
-	sendCmd(s, []byte{0xff, 0x55, 0x09, 0x00, 0x02, 0x08,
-	                  0x07, 0x02, position, r, g, b})
+	bot.addCmd(0xff, 0x55, 0x09, 0x00, 0x02, 0x08, 0x07, 0x02,
+             position, r, g, b)
 }
 
 // ----------------------------------------------------------
 
-func sendBuzzerCmd(s *serial.Port,
-                   tone uint16, beat uint16) {
-	toneLow := byte(tone & 0xff)
-	toneHigh := byte((tone >> 8) & 0xff)
-	beatLow := byte(beat & 0xff)
-	beatHigh := byte((beat >> 8) & 0xff)
-	sendCmd(s, []byte{0xff, 0x55, 0x07, 0x00, 0x02, 0x22,
-	                  toneLow, toneHigh, beatLow, beatHigh})
+func (bot *mbot)buzzerCmd(tone uint16, beat uint16) {
+	bot.addCmd(0xff, 0x55, 0x07, 0x00, 0x02, 0x22,
+             byte(tone & 0xff), byte((tone >> 8) & 0xff),
+	           byte(beat & 0xff), byte((beat >> 8) & 0xff))
 }
 
 // ----------------------------------------------------------
 
 func main() {
 	fmt.Println("--- mBot ---")
-	c := &serial.Config{Name: "COM4", Baud: 57600,
-  	ReadTimeout: 500 * time.Millisecond}
-	s, err := serial.OpenPort(c)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer s.Close()
+	bot := makeMbot("COM4")
+	defer bot.close()
 
-	for t := 0; t < 8; t++ {
-	  sendCmd(s, []byte{
-		  0xff, 0x55, 0x09, 0x00, 0x02, 0x08,
-	    0x07, 0x02, 0x01, 0xa0, 0x00, 0x00,
-		  0xff, 0x55, 0x09, 0x00, 0x02, 0x08,
-	    0x07, 0x02, 0x02, 0x00, 0x00, 0xa0 })
-		//sendBuzzerCmd(s, 6000, 4)
-		//sendLedCmd(s, ledLeft, 0xa0, 0x00, 0x00)
-		//sendLedCmd(s, ledRight, 0x00, 0x00, 0xa0)
-		time.Sleep(25 * time.Millisecond)
-	  sendCmd(s, []byte{
-		  0xff, 0x55, 0x09, 0x00, 0x02, 0x08,
-	    0x07, 0x02, 0x01, 0x00, 0x00, 0xa0,
-		  0xff, 0x55, 0x09, 0x00, 0x02, 0x08,
-	    0x07, 0x02, 0x02, 0xa0, 0x00, 0x00 })
-		//sendLedCmd(s, ledLeft, 0x00, 0x00, 0xa0)
-		//sendLedCmd(s, ledRight, 0xa0, 0x00, 0x00)
-		time.Sleep(25 * time.Millisecond)
+	for t := 0; t < 16; t++ {
+		bot.buzzerCmd(6000, 80)
+		bot.ledCmd(ledLeft, 0xa0, 0x00, 0x00)
+		bot.ledCmd(ledRight, 0x00, 0x00, 0xa0)
+		time.Sleep(200 * time.Millisecond)
+		bot.sendCmd()
+		bot.buzzerCmd(3000, 80)
+		bot.ledCmd(ledLeft, 0x00, 0x00, 0xa0)
+		bot.ledCmd(ledRight, 0xa0, 0x00, 0x00)
+		time.Sleep(200 * time.Millisecond)
+		bot.sendCmd()
 	}
-	sendLedCmd(s, ledBoth, 0x00, 0x00, 0x00)
+	bot.ledCmd(ledBoth, 0x00, 0x00, 0x00)
+	bot.sendCmd()
 
 	fmt.Println("------------")
 }
