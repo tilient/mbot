@@ -131,15 +131,17 @@ func (bot *mbot) lineSensorCmd() (bool, bool) {
 
 // ------------------------------------------------
 
-func (bot *mbot) ultrasonicSensorCmd() int {
+func (bot *mbot) ultrasonicSensorCmd() uint32 {
 	res := bot.cmd(0xff, 0x55, 0x04, 0x02, 0x01, 0x01, 0x03)
 	if len(res) < 10 {
 		log.Fatal("wrong ultrasonic sensor result")
 	}
-	result := int(res[4] << 24)
-	result += int(res[5] << 16)
-	result += int(res[6] << 8)
-	result += int(res[7])
+	result := uint32(res[4]) << 24
+	result += uint32(res[5]) << 16
+	result += uint32(res[6]) << 8
+	result += uint32(res[7])
+	fmt.Println(">>", res[4:8])
+	fmt.Println("->", result)
 	return result
 }
 
@@ -187,8 +189,8 @@ func blinkTest(bot *mbot, wg *sync.WaitGroup) {
 
 func lineSensorTest(bot *mbot, wg *sync.WaitGroup) {
 	time.Sleep(1000 * time.Millisecond)
-	for t := 0; t < 15; t++ {
-		left, right := bot.lineSensorCmd()
+	for t := 0; t < 25; t++ {
+		right, left := bot.lineSensorCmd()
 		if left {
 			bot.ledCmd(ledLeft, 0x00, 0xa0, 0x00)
 		} else {
@@ -205,17 +207,28 @@ func lineSensorTest(bot *mbot, wg *sync.WaitGroup) {
 	wg.Done()
 }
 
+func ultrasonicSensorTest(bot *mbot, wg *sync.WaitGroup) {
+	time.Sleep(1000 * time.Millisecond)
+	for t := 0; t < 20; t++ {
+		val := bot.ultrasonicSensorCmd()
+		fmt.Println("ultrasonic:", val)
+		time.Sleep(500 * time.Millisecond)
+	}
+	wg.Done()
+}
+
 func main() {
 	fmt.Println("--- mBot ---")
 	bot := makeMbot("COM4")
 	defer bot.close()
 
 	wg := sync.WaitGroup{}
-	wg.Add(4)
+	wg.Add(2)
 	go rotateTest(bot, &wg)
-	go sireneTest(bot, &wg)
+	//go sireneTest(bot, &wg)
 	go blinkTest(bot, &wg)
-	go lineSensorTest(bot, &wg)
+	//go lineSensorTest(bot, &wg)
+	//go ultrasonicSensorTest(bot, &wg)
 	wg.Wait()
 	fmt.Println("------------")
 }
