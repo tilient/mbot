@@ -108,6 +108,29 @@ func (bot *mbot) motorCmd(motor byte, speed int16) {
 
 // ------------------------------------------------
 
+func (bot *mbot) lineSensorCmd() (bool, bool) {
+	res := bot.cmd(0xff, 0x55, 0x04, 0x60, 0x01, 0x11, 0x02)
+	if len(res) < 10 {
+		log.Fatal("wrong line sensor result")
+	}
+	if (res[6] == 0x00) && (res[7] == 0x00) {
+		return false, false
+	}
+	if (res[6] == 0x40) && (res[7] == 0x40) {
+		return true, true
+	}
+	if (res[6] == 0x00) && (res[7] == 0x40) {
+		return true, false
+	}
+	if (res[6] == 0x80) && (res[7] == 0x3f) {
+		return false, true
+	}
+	log.Fatal("wrong line sensor result")
+	return false, false
+}
+
+// ------------------------------------------------
+
 func rotateTest(bot *mbot, wg *sync.WaitGroup) {
 	bot.motorCmd(rightMotor, 100)
 	bot.motorCmd(leftMotor, -100)
@@ -148,16 +171,37 @@ func blinkTest(bot *mbot, wg *sync.WaitGroup) {
 	wg.Done()
 }
 
+func lineSensorTest(bot *mbot, wg *sync.WaitGroup) {
+	time.Sleep(1000 * time.Millisecond)
+	for t := 0; t < 15; t++ {
+		left, right := bot.lineSensorCmd()
+		if left {
+			bot.ledCmd(ledLeft, 0x00, 0xa0, 0x00)
+		} else {
+			bot.ledCmd(ledLeft, 0x00, 0x00, 0x00)
+		}
+		if right {
+			bot.ledCmd(ledRight, 0x00, 0xa0, 0x00)
+		} else {
+			bot.ledCmd(ledRight, 0x00, 0x00, 0x00)
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	bot.ledCmd(ledBoth, 0x00, 0x00, 0x00)
+	wg.Done()
+}
+
 func main() {
 	fmt.Println("--- mBot ---")
 	bot := makeMbot("COM4")
 	defer bot.close()
 
 	wg := sync.WaitGroup{}
-	wg.Add(3)
+	wg.Add(4)
 	go rotateTest(bot, &wg)
 	go sireneTest(bot, &wg)
 	go blinkTest(bot, &wg)
+	go lineSensorTest(bot, &wg)
 	wg.Wait()
 	fmt.Println("------------")
 }
