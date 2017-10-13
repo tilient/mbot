@@ -131,6 +131,20 @@ func (bot *mbot) lineSensorCmd() (bool, bool) {
 
 // ------------------------------------------------
 
+func (bot *mbot) ultrasonicSensorCmd() int {
+	res := bot.cmd(0xff, 0x55, 0x04, 0x02, 0x01, 0x01, 0x03)
+	if len(res) < 10 {
+		log.Fatal("wrong ultrasonic sensor result")
+	}
+	result := int(res[4] << 24)
+	result += int(res[5] << 16)
+	result += int(res[6] << 8)
+	result += int(res[7])
+	return result
+}
+
+// ------------------------------------------------
+
 func rotateTest(bot *mbot, wg *sync.WaitGroup) {
 	bot.motorCmd(rightMotor, 100)
 	bot.motorCmd(leftMotor, -100)
