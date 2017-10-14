@@ -11,8 +11,10 @@ export CC=x86_64-w64-mingw32-gcc
 */
 
 import (
+	"encoding/binary"
 	"fmt"
 	"log"
+	"math"
 	"sync"
 	"time"
 
@@ -131,12 +133,18 @@ func (bot *mbot) lineSensorCmd() (bool, bool) {
 
 // ------------------------------------------------
 
-func (bot *mbot) ultrasonicSensorCmd() uint32 {
+func float32frombytes(bytes []byte) float32 {
+	bits := binary.LittleEndian.Uint32(bytes)
+	float := math.Float32frombits(bits)
+	return float
+}
+
+func (bot *mbot) ultrasonicSensorCmd() float32 {
 	res := bot.cmd(0xff, 0x55, 0x04, 0x00, 0x01, 0x01, 0x03)
 	if len(res) < 10 {
 		log.Fatal("wrong ultrasonic sensor result")
 	}
-	return uint32(res[7]-64)*256 + uint32(res[6])
+	return float32frombytes(res[4:8])
 }
 
 // ------------------------------------------------
@@ -206,22 +214,22 @@ func ultrasonicSensorTest(bot *mbot, wg *sync.WaitGroup) {
 	for t := 0; t < 50; t++ {
 		val := bot.ultrasonicSensorCmd()
 		fmt.Println("ultrasonic:", val)
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1000 * time.Millisecond)
 	}
 	wg.Done()
 }
 
 func main() {
 	fmt.Println("--- mBot ---")
-	bot := makeMbot("COM4")
+	bot := makeMbot("COM5")
 	defer bot.close()
 
 	wg := sync.WaitGroup{}
-	wg.Add(5)
-	go rotateTest(bot, &wg)
-	go sireneTest(bot, &wg)
-	go blinkTest(bot, &wg)
-	go lineSensorTest(bot, &wg)
+	wg.Add(1)
+	//go rotateTest(bot, &wg)
+	//go sireneTest(bot, &wg)
+	//go blinkTest(bot, &wg)
+	//go lineSensorTest(bot, &wg)
 	go ultrasonicSensorTest(bot, &wg)
 	wg.Wait()
 	fmt.Println("------------")
