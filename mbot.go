@@ -12,7 +12,6 @@ export CC=x86_64-w64-mingw32-gcc
 
 import (
 	"encoding/binary"
-	"fmt"
 	"log"
 	"math"
 	"sync"
@@ -43,6 +42,9 @@ func MakeMbot(portname string) *Mbot {
 }
 
 func (bot *Mbot) Close() {
+	bot.mux.Lock()
+	defer bot.mux.Unlock()
+
 	bot.port.Close()
 }
 
@@ -71,6 +73,8 @@ func (bot *Mbot) cmd(cmd ...byte) []byte {
 }
 
 // ------------------------------------------------
+// Led Command
+// ------------------------------------------------
 
 const (
 	LedLeft  = 0x01
@@ -80,10 +84,12 @@ const (
 
 func (bot *Mbot) LedCmd(led byte,
 	r byte, g byte, b byte) {
-	bot.cmd(0xff, 0x55, 0x09, 0x00, 0x02, 0x08,
-		0x07, 0x02, led, r, g, b)
+	bot.cmd(0xff, 0x55, 0x09, 0x00, 0x02,
+		0x08, 0x07, 0x02, led, r, g, b)
 }
 
+// ------------------------------------------------
+// Buzzer Command
 // ------------------------------------------------
 
 func (bot *Mbot) BuzzerCmd(tone uint16, beat uint16) {
@@ -93,14 +99,16 @@ func (bot *Mbot) BuzzerCmd(tone uint16, beat uint16) {
 }
 
 // ------------------------------------------------
+// Motor Command
+// ------------------------------------------------
 
 const (
 	LeftMotor  = 0x09
-	LightMotor = 0x0a
+	RightMotor = 0x0a
 )
 
 func (bot *Mbot) MotorCmd(motor byte, speed int16) {
-	if motor == rightMotor {
+	if motor == RightMotor {
 		speed = -speed
 	}
 	bot.cmd(0xff, 0x55, 0x06, 0x60, 0x02, 0x0a,
@@ -108,6 +116,8 @@ func (bot *Mbot) MotorCmd(motor byte, speed int16) {
 		byte(speed&0xff), byte((speed>>8)&0xff))
 }
 
+// ------------------------------------------------
+// Line Sensor Command
 // ------------------------------------------------
 
 func (bot *Mbot) LineSensorCmd() (bool, bool) {
@@ -132,12 +142,8 @@ func (bot *Mbot) LineSensorCmd() (bool, bool) {
 }
 
 // ------------------------------------------------
-
-func float32frombytes(bytes []byte) float32 {
-	bits := binary.LittleEndian.Uint32(bytes)
-	float := math.Float32frombits(bits)
-	return float
-}
+// Ultrasonic Sensor Command
+// ------------------------------------------------
 
 func (bot *Mbot) UltrasonicSensorCmd() float32 {
 	res := bot.cmd(0xff, 0x55, 0x04, 0x00, 0x01, 0x01, 0x03)
@@ -145,6 +151,28 @@ func (bot *Mbot) UltrasonicSensorCmd() float32 {
 		log.Fatal("wrong ultrasonic sensor result")
 	}
 	return float32frombytes(res[4:8])
+}
+
+// ------------------------------------------------
+// Light Sensor Command
+// ------------------------------------------------
+
+func (bot *Mbot) LigtSensorCmd() float32 {
+	res := bot.cmd(0xff, 0x55, 0x04, 0x05, 0x01, 0x03, 0x03)
+	if len(res) < 10 {
+		log.Fatal("wrong light sensor result")
+	}
+	return float32frombytes(res[4:8])
+}
+
+// ------------------------------------------------
+// Tools
+// ------------------------------------------------
+
+func float32frombytes(bytes []byte) float32 {
+	bits := binary.LittleEndian.Uint32(bytes)
+	float := math.Float32frombits(bits)
+	return float
 }
 
 // ------------------------------------------------
