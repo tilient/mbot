@@ -10,7 +10,7 @@ import (
 	"github.com/tarm/serial"
 )
 
-// ------------------------------------------------
+// --------------------------------------------------------
 
 type Mbot struct {
 	port *serial.Port
@@ -18,17 +18,14 @@ type Mbot struct {
 }
 
 func MakeMbot(portname string) *Mbot {
-	bot := Mbot{}
-	c := &serial.Config{
+	p, err := serial.OpenPort(&serial.Config{
 		Name:        portname,
 		Baud:        57600,
-		ReadTimeout: 500 * time.Millisecond}
-	p, err := serial.OpenPort(c)
+		ReadTimeout: 500 * time.Millisecond})
 	if err != nil {
 		log.Fatal(err)
 	}
-	bot.port = p
-	return &bot
+	return &Mbot{port: p}
 }
 
 func (bot *Mbot) Close() {
@@ -62,9 +59,9 @@ func (bot *Mbot) cmd(cmd ...byte) []byte {
 	return buf[:n]
 }
 
-// ------------------------------------------------
+// --------------------------------------------------------
 // Led Command
-// ------------------------------------------------
+// --------------------------------------------------------
 
 const (
 	LedLeft  = 0x01
@@ -72,15 +69,14 @@ const (
 	LedBoth  = 0x00
 )
 
-func (bot *Mbot) LedCmd(led byte,
-	r byte, g byte, b byte) {
-	bot.cmd(0xff, 0x55, 0x09, 0x00, 0x02,
-		0x08, 0x07, 0x02, led, r, g, b)
+func (bot *Mbot) LedCmd(led byte, r byte, g byte, b byte) {
+	bot.cmd(0xff, 0x55, 0x09, 0x00, 0x02, 0x08, 0x07, 0x02,
+		led, r, g, b)
 }
 
-// ------------------------------------------------
+// --------------------------------------------------------
 // Buzzer Command
-// ------------------------------------------------
+// --------------------------------------------------------
 
 func (bot *Mbot) BuzzerCmd(tone uint16, beat uint16) {
 	bot.cmd(0xff, 0x55, 0x07, 0x00, 0x02, 0x22,
@@ -88,9 +84,9 @@ func (bot *Mbot) BuzzerCmd(tone uint16, beat uint16) {
 		byte(beat&0xff), byte((beat>>8)&0xff))
 }
 
-// ------------------------------------------------
+// --------------------------------------------------------
 // Motor Command
-// ------------------------------------------------
+// --------------------------------------------------------
 
 const (
 	LeftMotor  = 0x09
@@ -102,13 +98,12 @@ func (bot *Mbot) MotorCmd(motor byte, speed int16) {
 		speed = -speed
 	}
 	bot.cmd(0xff, 0x55, 0x06, 0x60, 0x02, 0x0a,
-		motor,
-		byte(speed&0xff), byte((speed>>8)&0xff))
+		motor, byte(speed&0xff), byte((speed>>8)&0xff))
 }
 
-// ------------------------------------------------
+// --------------------------------------------------------
 // Line Sensor Command
-// ------------------------------------------------
+// --------------------------------------------------------
 
 func (bot *Mbot) LineSensorCmd() (bool, bool) {
 	res := bot.cmd(0xff, 0x55, 0x04, 0x60, 0x01, 0x11, 0x02)
@@ -131,21 +126,21 @@ func (bot *Mbot) LineSensorCmd() (bool, bool) {
 	return false, false
 }
 
-// ------------------------------------------------
+// --------------------------------------------------------
 // Ultrasonic Sensor Command
-// ------------------------------------------------
+// --------------------------------------------------------
 
 func (bot *Mbot) UltrasonicSensorCmd() float32 {
 	res := bot.cmd(0xff, 0x55, 0x04, 0x00, 0x01, 0x01, 0x03)
 	if len(res) < 10 {
 		log.Fatal("wrong ultrasonic sensor result")
 	}
-	return float32frombytes(res[4:8])
+	return 1.27 * float32frombytes(res[4:8])
 }
 
-// ------------------------------------------------
+// --------------------------------------------------------
 // Light Sensor Command
-// ------------------------------------------------
+// --------------------------------------------------------
 
 func (bot *Mbot) LigtSensorCmd() float32 {
 	res := bot.cmd(0xff, 0x55, 0x04, 0x05, 0x01, 0x03, 0x03)
@@ -155,14 +150,11 @@ func (bot *Mbot) LigtSensorCmd() float32 {
 	return float32frombytes(res[4:8])
 }
 
-// ------------------------------------------------
+// --------------------------------------------------------
 // Tools
-// ------------------------------------------------
+// --------------------------------------------------------
 
 func float32frombytes(bytes []byte) float32 {
-	bits := binary.LittleEndian.Uint32(bytes)
-	float := math.Float32frombits(bits)
-	return float
+	return math.Float32frombits(
+		binary.LittleEndian.Uint32(bytes))
 }
-
-// ------------------------------------------------

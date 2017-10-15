@@ -25,13 +25,13 @@ func main() {
 	defer bot.Close()
 
 	wg := &sync.WaitGroup{}
-	wg.Add(6)
-	go rotateTest(bot, wg)
-	go sireneTest(bot, wg)
-	go blinkTest(bot, wg)
-	go lineSensorTest(bot, wg)
+	wg.Add(1)
+	//go rotateTest(bot, wg)
+	//go sireneTest(bot, wg)
+	//go blinkTest(bot, wg)
+	//go lineSensorTest(bot, wg)
 	go ultrasonicSensorTest(bot, wg)
-	go lightSensorTest(bot, wg)
+	//go lightSensorTest(bot, wg)
 	wg.Wait()
 
 	fmt.Println("------------")
@@ -100,11 +100,11 @@ func lineSensorTest(bot *mbot.Mbot, wg *sync.WaitGroup) {
 
 func ultrasonicSensorTest(bot *mbot.Mbot, wg *sync.WaitGroup) {
 	defer wg.Done()
-	time.Sleep(2000 * time.Millisecond)
-	for t := 0; t < 30; t++ {
+	time.Sleep(2 * time.Millisecond)
+	for t := 0; t < 600; t++ {
 		val := bot.UltrasonicSensorCmd()
 		fmt.Println("ultrasonic:", val)
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 	}
 }
 
